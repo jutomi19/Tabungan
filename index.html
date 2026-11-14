@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>DuitKu ENT — Tabungan Masa Depan</title>
+
+<!-- ==================== PWA & IPHONE META TAGS ==================== -->
+<link rel="manifest" href='data:application/manifest+json,{"name":"DuitKu ENT","short_name":"DuitKu","start_url":"./index.html","display":"standalone","background_color":"%231e293b","theme_color":"%231e293b","icons":[{"src":"https://cdn-icons-png.flaticon.com/512/2489/2489756.png","sizes":"192x192","type":"image/png"},{"src":"https://cdn-icons-png.flaticon.com/512/2489/2489756.png","sizes":"512x512","type":"image/png"}]}'>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="DuitKu">
+<link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2489/2489756.png">
+<!-- ============================================================== -->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+<!-- SDK FIREBASE UNTUK REALTIME DATABASE (VERSI 8 - COMPAT) -->
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+<style>
+  :root {
+    --bg-main: #f4f7f9; --sidebar-bg: #1e293b; --sidebar-text: #94a3b8;
+    --sidebar-active: #38bdf8; --card-bg: #ffffff; --text-main: #1e293b;
+    --text-muted: #64748b; --green: #10b981; --red: #ef4444;
+    --blue: #3b82f6; --border: #e2e8f0;
+    --font-brand: 'Outfit', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+  body { background: var(--bg-main); color: var(--text-main); display: flex; height: 100vh; overflow: hidden; }
+
+  /* LOADING SCREEN */
+  #loading { position: fixed; inset: 0; background: #1e293b; color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9999; font-family: var(--font-brand); }
+  .spinner { width: 40px; height: 40px; border: 4px solid rgba(255,255,255,0.1); border-left-color: #38bdf8; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* === SIDEBAR === */
+  .sidebar { width: 250px; background: var(--sidebar-bg); color: var(--sidebar-text); display: flex; flex-direction: column; transition: 0.3s; }
+  .brand { padding: 22px 20px; border-bottom: 1px solid #334155; display: flex; flex-direction: column; gap: 4px; }
+  .brand-main { font-family: var(--font-brand); font-size: 22px; font-weight: 800; color: #fff; display: flex; align-items: center; gap: 10px; letter-spacing: -0.5px; }
+  .brand-main span { color: var(--sidebar-active); }
+  .brand-sub { font-family: var(--font-brand); font-size: 11px; color: var(--sidebar-active); font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; margin-left: 30px; opacity: 0.9; }
+
+  .nav-menu { list-style: none; padding: 10px 0; flex: 1; overflow-y: auto; }
+  .nav-menu li { padding: 14px 20px; display: flex; align-items: center; gap: 12px; cursor: pointer; font-size: 14px; transition: 0.2s; font-weight: 500; }
+  .nav-menu li:hover { background: #334155; color: #fff; }
+  .nav-menu li.active { background: #0f172a; color: var(--sidebar-active); border-left: 4px solid var(--sidebar-active); font-weight: 600; }
+  .nav-menu li i { width: 20px; text-align: center; }
+
+  /* === MAIN CONTENT === */
+  .main-content { flex: 1; display: flex; flex-direction: column; overflow-y: auto; }
+  .topbar { background: #fff; padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+  .topbar h2 { font-size: 18px; color: var(--text-main); font-weight: 700; }
+  
+  .user-profile { display: flex; align-items: center; gap: 15px; }
+  .greeting { text-align: right; line-height: 1.3; }
+  .greeting .welcome { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+  .greeting .future { font-family: var(--font-brand); font-size: 18px; color: var(--text-main); font-weight: 800; }
+  .avatar { width: 40px; height: 40px; background: linear-gradient(135deg, #3b82f6, #8b5cf6); color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: var(--font-brand); font-weight: 700; font-size: 16px; box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3); }
+
+  .dashboard-container { padding: 20px 25px; display: grid; gap: 20px; grid-template-columns: repeat(3, 1fr); }
+  .card { background: var(--card-bg); border-radius: 8px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); border: 1px solid var(--border); }
+  .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px; }
+  .card-header h3 { font-size: 14px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+
+  .full-width { grid-column: span 3; }
+  .half-width { grid-column: span 2; }
+  .one-third { grid-column: span 1; }
+
+  .kpi-group { display: flex; justify-content: space-between; align-items: center; }
+  .kpi-item h4 { font-size: 12px; color: var(--text-muted); margin-bottom: 5px; font-weight: 600; }
+  .kpi-item .value { font-family: var(--font-brand); font-size: 22px; font-weight: 800; }
+  .kpi-item .value.pos { color: var(--green); }
+  .kpi-item .value.neg { color: var(--red); }
+  .kpi-item .sub { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+
+  .chart-container { position: relative; height: 250px; width: 100%; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; padding: 10px; border-bottom: 1px solid var(--border); color: var(--text-muted); font-weight: 600; }
+  td { padding: 10px; border-bottom: 1px solid #f1f5f9; }
+  tr:last-child td { border-bottom: none; }
+  .badge { padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; display: inline-block; }
+  .badge.green { background: #d1fae5; color: #065f46; }
+  .badge.red { background: #fee2e2; color: #991b1b; }
+  .badge.blue { background: #dbeafe; color: #1e40af; }
+  .badge.gray { background: #f1f5f9; color: #475569; }
+
+  .btn { padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer; font-size: 13px; font-weight: 600; transition: 0.2s; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+  .btn-primary { background: var(--blue); color: #fff; }
+  .btn-primary:hover { background: #2563eb; }
+  .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text-main); }
+  .btn-outline:hover { background: #f8fafc; }
+  .btn-danger { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+  .btn-danger:hover { background: #fecaca; }
+  .btn-sm { padding: 4px 8px; font-size: 11px; }
+
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 100; }
+  .modal-overlay.on { display: flex; }
+  .modal-content { background: #fff; width: 500px; max-width: 90%; border-radius: 10px; padding: 25px; max-height: 90vh; overflow-y: auto; }
+  .modal-content h3 { margin-bottom: 15px; color: var(--text-main); font-family: var(--font-brand); font-size: 20px; }
+  .form-group { margin-bottom: 15px; }
+  .form-group label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 5px; font-weight: 600; }
+  .form-group input, .form-group select { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 14px; outline: none; font-family: inherit; }
+  .form-group input:focus, .form-group select:focus { border-color: var(--blue); }
+  .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+  .modal-actions button { flex: 1; }
+
+  .setting-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #f1f5f9; }
+  .setting-row:last-child { border-bottom: none; }
+  .setting-info h4 { font-size: 14px; font-weight: 600; }
+  .setting-info p { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .tag-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .tag { background: #f1f5f9; padding: 5px 10px; border-radius: 20px; font-size: 12px; display: flex; align-items: center; gap: 8px; }
+  .tag i { cursor: pointer; color: #94a3b8; }
+  .tag i:hover { color: var(--red); }
+
+  @media (max-width: 1024px) {
+    .dashboard-container { grid-template-columns: 1fr; }
+    .full-width, .half-width, .one-third { grid-column: span 1; }
+  }
+  @media (max-width: 768px) {
+    .sidebar { display: none; }
+    body { flex-direction: column; }
+    .dashboard-container { padding: 10px; gap: 10px; }
+    .card { padding: 15px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- LOADING SCREEN -->
+<div id="loading">
+  <div class="spinner"></div>
+  <div>Menghubungkan ke Cloud...</div>
+</div>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="brand">
+    <div class="brand-main"><i class="fa-solid fa-chart-pie"></i> DuitKu <span>ENT</span></div>
+    <div class="brand-sub">Tabungan Masa Depan</div>
+  </div>
+  
+  <ul class="nav-menu">
+    <li class="active" data-tab="dash"><i class="fa-solid fa-gauge"></i> Dashboard</li>
+    <li data-tab="tx"><i class="fa-solid fa-file-invoice-dollar"></i> Transaksi</li>
+    <li data-tab="acc"><i class="fa-solid fa-wallet"></i> Dompet & Bank</li>
+    <li data-tab="plan"><i class="fa-solid fa-bullseye"></i> Rencana</li>
+    <li data-tab="rep"><i class="fa-solid fa-chart-line"></i> Laporan</li>
+    <li style="margin-top:auto; border-top: 1px solid #334155;" data-tab="settings"><i class="fa-solid fa-cog"></i> Pengaturan</li>
+  </ul>
+</aside>
+
+<!-- MAIN CONTENT -->
+<main class="main-content">
+  <div class="topbar">
+    <h2 id="page-title">Dashboard Utama</h2>
+    <div class="user-profile">
+      <div class="greeting">
+        <div class="welcome">Selamat datang,</div>
+        <div class="future">Hallo Masa Depan 👋</div>
+      </div>
+      <div class="avatar">MD</div>
+    </div>
+  </div>
+  <div class="dashboard-container" id="app"></div>
+</main>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal">
+  <div class="modal-content" id="modal-content"></div>
+</div>
+
+<script>
+/* ===================== 1. KONFIGURASI FIREBASE ===================== */
+const firebaseConfig = {
+  apiKey: "AIzaSyC3-CCA__QPrreNF2P5tE-Xab6cI6dQl7U",
+  authDomain: "duitku-keluarga.firebaseapp.com",
+  projectId: "duitku-keluarga",
+  storageBucket: "duitku-keluarga.firebasestorage.app",
+  messagingSenderId: "799462104902",
+  appId: "1:799462104902:web:e0867bc73eea3be0dfcf47",
+  measurementId: "G-8NZJJRLNPM"
+};
+
+firebase.initializeApp(firebaseConfig);
+const firestore = firebase.firestore();
+
+const FAMILY_ID = "keluarga-masa-depan"; 
+
+/* ===================== 2. LOGIKA APLIKASI ===================== */
+const uid = () => Math.random().toString(36).slice(2, 9);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt = n => (n < 0 ? '-Rp ' : 'Rp ') + Math.abs(Math.round(n)).toLocaleString('id-ID');
+const todayStr = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); };
+const MON = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+const fmtDate = s => { const p = String(s).split('-'); return (+p[2]) + ' ' + (MON[+p[1]-1] || '') + ' ' + p[0]; };
+const fmtMonth = m => { const p = m.split('-'); return MON[+p[1]-1] + ' ' + p[0]; };
+
+function seedDB() {
+  return {
+    members: ['Suami', 'Istri'],
+    accounts: [
+      { id: uid(), name: 'Cash / Dompet', type: 'cash', open: 0 },
+      { id: uid(), name: 'Bank BCA', type: 'bank', open: 0 }
+    ],
+    cats: [
+      { id: uid(), n: 'Gaji', t: 'masuk' },
+      { id: uid(), n: 'Makan', t: 'keluar' }
+    ],
+    tx: [],
+    plans: []
+  };
+}
+
+let db = seedDB(); 
+let tab = 'dash';
+let curMonth = todayStr().slice(0, 7);
+let chartInstances = {};
+let isCloudReady = false;
+
+const $app = document.getElementById('app');
+const $modal = document.getElementById('modal');
+const $modalContent = document.getElementById('modal-content');
+const $loading = document.getElementById('loading');
+
+/* ===================== 3. SINKRONISASI REALTIME (CLOUD) ===================== */
+function syncRealtime() {
+  firestore.collection("families").doc(FAMILY_ID).onSnapshot((doc) => {
+    if (doc.exists) {
+      db = doc.data();
+    } else {
+      firestore.collection("families").doc(FAMILY_ID).set(seedDB());
+    }
+    
+    if (!isCloudReady) {
+      isCloudReady = true;
+      $loading.style.display = 'none';
+    }
+    
+    render();
+  }, (error) => {
+    console.error("Error realtime:", error);
+    alert("Gagal terhubung ke Cloud. Pastikan aturan Firestore di-set ke 'Test Mode' atau 'allow read, write: if true'.");
+    $loading.style.display = 'none';
+  });
+}
+
+function save() {
+  if(!isCloudReady) return;
+  firestore.collection("families").doc(FAMILY_ID).set(db)
+    .catch(err => alert("Gagal menyimpan ke Cloud: " + err));
+}
+
+/* ===================== 4. HITUNG & VIEWS ===================== */
+function accBal(id) {
+  const a = db.accounts.find(x => x.id === id);
+  if (!a) return 0;
+  let b = Number(a.open) || 0;
+  for (const t of db.tx) {
+    if (t.type === 'masuk'  && t.acc === id) b += t.amt;
+    if (t.type === 'keluar' && t.acc === id) b -= t.amt;
+  }
+  return b;
+}
+const totalBal = () => db.accounts.reduce((s, a) => s + accBal(a.id), 0);
+const catName = id => (db.cats.find(c => c.id === id) || { n: 'Tanpa kategori' }).n;
+const accName = id => (db.accounts.find(a => a.id === id) || { name: '?' }).name;
+
+function monthStats(month) {
+  const list = db.tx.filter(t => String(t.date).startsWith(month));
+  const inc = list.filter(t => t.type === 'masuk').reduce((s, t) => s + t.amt, 0);
+  const exp = list.filter(t => t.type === 'keluar').reduce((s, t) => s + t.amt, 0);
+  return { list, inc, exp, net: inc - exp };
+}
+
+function viewDash() {
+  const { inc, exp, net, list } = monthStats(curMonth);
+  const total = totalBal();
+  const recentTx = [...list].sort((a,b) => (a.date < b.date ? 1 : -1)).slice(0, 5);
+
+  return `
+    <div class="card full-width">
+      <div class="kpi-group">
+        <div class="kpi-item"><h4>Total Saldo</h4><div class="value ${total >= 0 ? 'pos' : 'neg'}">${fmt(total)}</div><div class="sub">Dari ${db.accounts.length} dompet</div></div>
+        <div class="kpi-item"><h4>Pemasukan Bulan Ini</h4><div class="value pos">${fmt(inc)}</div><div class="sub">${fmtMonth(curMonth)}</div></div>
+        <div class="kpi-item"><h4>Pengeluaran Bulan Ini</h4><div class="value neg">${fmt(exp)}</div><div class="sub">${fmtMonth(curMonth)}</div></div>
+        <div class="kpi-item"><h4>Laba / Rugi</h4><div class="value ${net >= 0 ? 'pos' : 'neg'}">${fmt(net)}</div><div class="sub">Selisih bersih</div></div>
+      </div>
+    </div>
+
+    <div class="card half-width">
+      <div class="card-header"><h3><i class="fa-solid fa-chart-line"></i> Arus Kas (7 Hari Terakhir)</h3></div>
+      <div class="chart-container"><canvas id="cashFlowChart"></canvas></div>
+    </div>
+
+    <div class="card one-third">
+      <div class="card-header"><h3><i class="fa-solid fa-chart-pie"></i> Pengeluaran per Kategori</h3></div>
+      <div class="chart-container" style="height: 200px;"><canvas id="expensePieChart"></canvas></div>
+    </div>
+
+    <div class="card full-width">
+      <div class="card-header">
+        <h3><i class="fa-solid fa-list"></i> Transaksi Terakhir</h3>
+        <button class="btn btn-primary" onclick="openTx(null)"><i class="fa-solid fa-plus"></i> Catat Transaksi</button>
+      </div>
+      <table>
+        <thead><tr><th>Tanggal</th><th>Keterangan</th><th>Dompet</th><th>Kategori</th><th>Nominal</th><th>Status</th></tr></thead>
+        <tbody>
+          ${recentTx.length ? recentTx.map(t => `
+            <tr>
+              <td>${fmtDate(t.date)}</td>
+              <td>${esc(t.note || 'Tanpa catatan')}</td>
+              <td>${esc(accName(t.acc))}</td>
+              <td><span class="badge blue">${esc(catName(t.cat))}</span></td>
+              <td class="${t.type === 'masuk' ? 'pos' : 'neg'}" style="font-weight:700;">${t.type === 'masuk' ? '+' : '−'}${fmt(t.amt)}</td>
+              <td><span class="badge ${t.type === 'masuk' ? 'green' : 'red'}">${t.type === 'masuk' ? 'Masuk' : 'Keluar'}</span></td>
+            </tr>
+          `).join('') : '<tr><td colspan="6" style="text-align:center; color:#94a3b8;">Belum ada transaksi</td></tr>'}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function viewTx() {
+  const list = db.tx.filter(t => String(t.date).startsWith(curMonth))
+    .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : (b.ts || 0) - (a.ts || 0)));
+  return `
+    <div class="card full-width">
+      <div class="card-header">
+        <h3><i class="fa-solid fa-file-invoice-dollar"></i> Daftar Transaksi — ${fmtMonth(curMonth)}</h3>
+        <div style="display:flex; gap:10px;">
+          <input type="month" id="monthSel" value="${curMonth}" style="padding:8px; border-radius:6px; border:1px solid var(--border);">
+          <button class="btn btn-primary" onclick="openTx(null)"><i class="fa-solid fa-plus"></i> Tambah</button>
+        </div>
+      </div>
+      <table>
+        <thead><tr><th>Tanggal</th><th>Keterangan</th><th>Dompet</th><th>Kategori</th><th>Nominal</th><th>Oleh</th><th>Aksi</th></tr></thead>
+        <tbody>
+          ${list.length ? list.map(t => `
+            <tr>
+              <td>${fmtDate(t.date)}</td>
+              <td>${esc(t.note || '-')}</td>
+              <td>${esc(accName(t.acc))}</td>
+              <td><span class="badge blue">${esc(catName(t.cat))}</span></td>
+              <td class="${t.type === 'masuk' ? 'pos' : 'neg'}" style="font-weight:700;">${t.type === 'masuk' ? '+' : '−'}${fmt(t.amt)}</td>
+              <td>${esc(t.by || '-')}</td>
+              <td><button class="btn btn-outline btn-sm" onclick="openTx('${t.id}')">Edit</button></td>
+            </tr>
+          `).join('') : '<tr><td colspan="7" style="text-align:center; color:#94a3b8;">Tidak ada transaksi di bulan ini</td></tr>'}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+function viewAcc() {
+  return `
+    ${db.accounts.map(a => `
+      <div class="card one-third" onclick="openAcc('${a.id}')" style="cursor:pointer;">
+        <div class="card-header" style="border-bottom:none; margin-bottom:5px;">
+          <h3 style="font-size:15px; color:var(--text-main); font-weight:700;"><i class="fa-solid fa-building-columns"></i> ${esc(a.name)}</h3>
+          <i class="fa-solid fa-pen"></i>
+        </div>
+        <div style="font-size:12px; color:var(--text-muted);">${a.type === 'cash' ? 'Uang Cash' : a.type === 'ewallet' ? 'E-Wallet' : 'Rekening Bank'}</div>
+        <div style="font-family: var(--font-brand); font-size:22px; font-weight:800; margin-top:10px;" class="${accBal(a.id) < 0 ? 'neg' : ''}">${fmt(accBal(a.id))}</div>
+        <div style="font-size:11px; color:var(--text-muted); margin-top:5px;">Saldo awal: ${fmt(a.open || 0)}</div>
+      </div>`).join('')}
+    <div class="card full-width">
+      <button class="btn btn-outline" style="width:100%;" onclick="openAcc(null)"><i class="fa-solid fa-plus"></i> Tambah Bank / Dompet Baru</button>
+    </div>
+  `;
+}
+
+function viewPlan() {
+  const totalTarget = db.plans.reduce((s, p) => s + p.target, 0);
+  const totalSaved = db.plans.reduce((s, p) => s + p.saved, 0);
+  return `
+    <div class="card full-width">
+      <div class="kpi-group">
+        <div class="kpi-item"><h4>Total Target Impian</h4><div class="value">${fmt(totalTarget)}</div></div>
+        <div class="kpi-item"><h4>Terkumpul</h4><div class="value pos">${fmt(totalSaved)}</div></div>
+        <div class="kpi-item"><h4>Progress</h4><div class="value">${totalTarget ? Math.round(totalSaved / totalTarget * 100) : 0}%</div></div>
+        <button class="btn btn-primary" onclick="openPlan(null)"><i class="fa-solid fa-plus"></i> Rencana Baru</button>
+      </div>
+    </div>
+    ${db.plans.map(p => {
+      const pct = p.target ? Math.min(100, p.saved / p.target * 100) : 0;
+      return `<div class="card one-third">
+        <div class="card-header">
+          <h3><i class="fa-solid fa-bullseye"></i> ${esc(p.name)}</h3>
+          <span class="badge blue">${p.priority || 'Normal'}</span>
+        </div>
+        <div style="font-size:12px; color:var(--text-muted); margin-bottom:5px;">Target: <b>${fmt(p.target)}</b></div>
+        <div style="height:8px; background:#e2e8f0; border-radius:4px; overflow:hidden; margin-bottom:10px;">
+          <div style="height:100%; width:${pct}%; background:var(--blue);"></div>
+        </div>
+        <div style="display:flex; justify-content:space-between; font-size:12px;">
+          <span class="pos">Terkumpul ${fmt(p.saved)}</span>
+          <span class="neg">Sisa ${fmt(Math.max(0, p.target - p.saved))}</span>
+        </div>
+        <div style="display:flex; gap:8px; margin-top:15px;">
+          <button class="btn btn-outline" style="flex:1; padding:6px;" onclick="addFund('${p.id}')"><i class="fa-solid fa-plus"></i> Dana</button>
+          <button class="btn btn-outline" style="flex:1; padding:6px;" onclick="openPlan('${p.id}')">Edit</button>
+        </div>
+      </div>`;
+    }).join('')}
+  `;
+}
+
+function viewRep() {
+  const { list, inc, exp } = monthStats(curMonth);
+  const expByCat = {};
+  list.filter(t => t.type === 'keluar').forEach(t => { expByCat[catName(t.cat)] = (expByCat[catName(t.cat)] || 0) + t.amt; });
+  const expArr = Object.entries(expByCat).sort((a,b) => b[1] - a[1]);
+  
+  const incByCat = {};
+  list.filter(t => t.type === 'masuk').forEach(t => { incByCat[catName(t.cat)] = (incByCat[catName(t.cat)] || 0) + t.amt; });
+  const incArr = Object.entries(incByCat).sort((a,b) => b[1] - a[1]);
+
+  return `
+    <div class="card full-width">
+      <div class="card-header"><h3><i class="fa-solid fa-chart-bar"></i> Tren 6 Bulan Terakhir</h3></div>
+      <div class="chart-container" style="height: 300px;"><canvas id="trendChart"></canvas></div>
+    </div>
+
+    <div class="card one-third">
+      <div class="card-header"><h3>Pemasukan (${fmtMonth(curMonth)})</h3></div>
+      ${incArr.length ? incArr.map(([cat, amt]) => `
+        <div style="margin-bottom:12px">
+          <div style="display:flex;justify-content:space-between;font-size:13px; margin-bottom:4px;">
+            <span>${esc(cat)}</span><b class="pos">${fmt(amt)}</b>
+          </div>
+          <div style="font-size:11px; color:var(--text-muted); text-align:right;">${Math.round(amt/inc*100)}% dari total</div>
+        </div>`).join('') : '<p style="color:var(--text-muted); font-size:13px;">Tidak ada pemasukan</p>'}
+    </div>
+
+    <div class="card one-third">
+      <div class="card-header"><h3>Pengeluaran (${fmtMonth(curMonth)})</h3></div>
+      ${expArr.length ? expArr.map(([cat, amt]) => `
+        <div style="margin-bottom:12px">
+          <div style="display:flex;justify-content:space-between;font-size:13px; margin-bottom:4px;">
+            <span>${esc(cat)}</span><b class="neg">${fmt(amt)}</b>
+          </div>
+          <div style="font-size:11px; color:var(--text-muted); text-align:right;">${Math.round(amt/exp*100)}% dari total</div>
+        </div>`).join('') : '<p style="color:var(--text-muted); font-size:13px;">Tidak ada pengeluaran</p>'}
+    </div>
+
+    <div class="card one-third">
+      <div class="card-header"><h3>Export Data</h3></div>
+      <p style="font-size:12px; color:var(--text-muted); margin-bottom:15px;">Unduh laporan transaksi bulan ini dalam format Excel/CSV.</p>
+      <button class="btn btn-outline" style="width:100%;" onclick="exportCSV()"><i class="fa-solid fa-file-excel"></i> Download CSV (${fmtMonth(curMonth)})</button>
+    </div>
+  `;
+}
+
+function viewSettings() {
+  return `
+    <div class="card full-width" style="background:#e0f2fe; border-color:#bae6fd;">
+      <div style="display:flex; align-items:center; gap:15px;">
+        <i class="fa-solid fa-cloud-check" style="font-size:30px; color:#0284c7;"></i>
+        <div>
+          <h4 style="color:#0369a1; margin-bottom:4px;">Cloud Sync Aktif</h4>
+          <p style="font-size:12px; color:#0c4a6e;">Semua data yang dicatat di HP Anda dan istri akan tersinkronisasi secara realtime melalui ID Keluarga: <b>${FAMILY_ID}</b></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card half-width">
+      <div class="card-header"><h3><i class="fa-solid fa-users"></i> Anggota Keluarga</h3></div>
+      <div class="tag-list">
+        ${db.members.map((m, i) => `
+          <div class="tag">${esc(m)} <i class="fa-solid fa-xmark" onclick="delMember(${i})"></i></div>
+        `).join('')}
+      </div>
+      <div style="display:flex; gap:10px; margin-top:15px;">
+        <input type="text" id="newMember" placeholder="Nama anggota baru..." style="flex:1; padding:8px; border:1px solid var(--border); border-radius:6px;">
+        <button class="btn btn-primary" onclick="addMember()">Tambah</button>
+      </div>
+    </div>
+
+    <div class="card one-third">
+      <div class="card-header"><h3><i class="fa-solid fa-tags"></i> Manajemen Kategori</h3></div>
+      <div style="max-height:200px; overflow-y:auto; margin-bottom:15px;">
+        ${db.cats.map(c => `
+          <div class="setting-row" style="padding:8px 0;">
+            <div class="setting-info">
+              <span class="badge ${c.t === 'masuk' ? 'green' : 'red'}">${esc(c.n)}</span>
+            </div>
+            <button class="btn btn-outline btn-sm" onclick="delCategory('${c.id}')"><i class="fa-solid fa-trash"></i></button>
+          </div>
+        `).join('')}
+      </div>
+      <p style="font-size:11px; color:var(--text-muted);">*Kategori baru akan otomatis muncul saat Anda mengetiknya di menu Transaksi.</p>
+    </div>
+
+    <div class="card full-width">
+      <div class="card-header"><h3><i class="fa-solid fa-shield-halved"></i> Keamanan & Data</h3></div>
+      <div class="setting-row">
+        <div class="setting-info">
+          <h4>Backup Data Manual</h4>
+          <p>Simpan salinan data ke file (.json) sebagai cadangan ekstra.</p>
+        </div>
+        <button class="btn btn-outline" onclick="backupData()"><i class="fa-solid fa-download"></i> Backup</button>
+      </div>
+      <div class="setting-row">
+        <div class="setting-info">
+          <h4 style="color:var(--red)">Hapus Semua Data</h4>
+          <p>Mengosongkan seluruh transaksi di Cloud. Tidak bisa dibatalkan!</p>
+        </div>
+        <button class="btn btn-danger" onclick="resetData()"><i class="fa-solid fa-trash-can"></i> Reset Data</button>
+      </div>
+    </div>
+  `;
+}
+
+function render() {
+  Object.values(chartInstances).forEach(c => c.destroy());
+  chartInstances = {};
+  if (!isCloudReady) return;
+
+  if (tab === 'dash') $app.innerHTML = viewDash();
+  else if (tab === 'tx') $app.innerHTML = viewTx();
+  else if (tab === 'acc') $app.innerHTML = viewAcc();
+  else if (tab === 'plan') $app.innerHTML = viewPlan();
+  else if (tab === 'rep') $app.innerHTML = viewRep();
+  else if (tab === 'settings') $app.innerHTML = viewSettings();
+
+  if (tab === 'dash') initDashCharts();
+  if (tab === 'rep') initRepCharts();
+
+  const ms = document.getElementById('monthSel');
+  if (ms) ms.addEventListener('change', e => { curMonth = e.target.value || curMonth; render(); });
+}
+
+/* Chart.js */
+function initDashCharts() {
+  const { list } = monthStats(curMonth);
+  const last7Days = [...Array(7)].map((_, i) => { const d = new Date(); d.setDate(d.getDate() - (6 - i)); return d.toISOString().slice(0, 10); });
+  const cashIn = last7Days.map(date => list.filter(t => t.date === date && t.type === 'masuk').reduce((s, t) => s + t.amt, 0));
+  const cashOut = last7Days.map(date => list.filter(t => t.date === date && t.type === 'keluar').reduce((s, t) => s + t.amt, 0));
+  const labels = last7Days.map(d => d.slice(8) + '/' + d.slice(5,7));
+  const ctxLine = document.getElementById('cashFlowChart');
+  if (ctxLine) {
+    chartInstances.line = new Chart(ctxLine, { type: 'line', data: { labels: labels, datasets: [{ label: 'Masuk', data: cashIn, borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.1)', tension: 0.4, fill: true }, { label: 'Keluar', data: cashOut, borderColor: '#ef4444', backgroundColor: 'rgba(239,68,68,0.1)', tension: 0.4, fill: true }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' } } } });
+  }
+  const expByCat = {};
+  list.filter(t => t.type === 'keluar').forEach(t => { expByCat[catName(t.cat)] = (expByCat[catName(t.cat)] || 0) + t.amt; });
+  const pieLabels = Object.keys(expByCat);
+  const pieData = Object.values(expByCat);
+  const ctxPie = document.getElementById('expensePieChart');
+  if (ctxPie && pieLabels.length) {
+    chartInstances.pie = new Chart(ctxPie, { type: 'doughnut', data: { labels: pieLabels, datasets: [{ data: pieData, backgroundColor: ['#3b82f6', '#ef4444', '#f59e0b', '#10b981', '#8b5cf6', '#ec4899'] }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 10 } } } } } });
+  }
+}
+function initRepCharts() {
+  const months = []; const incData = []; const expData = [];
+  for(let i=5; i>=0; i--) { const d = new Date(); d.setMonth(d.getMonth() - i); const mStr = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0'); months.push(fmtMonth(mStr)); const stats = monthStats(mStr); incData.push(stats.inc); expData.push(stats.exp); }
+  const ctxTrend = document.getElementById('trendChart');
+  if (ctxTrend) { chartInstances.trend = new Chart(ctxTrend, { type: 'bar', data: { labels: months, datasets: [{ label: 'Pemasukan', data: incData, backgroundColor: '#10b981', borderRadius: 4 }, { label: 'Pengeluaran', data: expData, backgroundColor: '#ef4444', borderRadius: 4 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' } }, scales: { y: { beginAtZero: true } } } }); }
+}
+
+/* Aksi Settings & Export */
+function exportCSV() {
+  const list = db.tx.filter(t => String(t.date).startsWith(curMonth));
+  if(!list.length) return alert('Tidak ada data untuk bulan ini.');
+  let csv = 'Tanggal,Jenis,Keterangan,Kategori,Dompet,Nominal,Oleh\n';
+  list.forEach(t => { csv += `${t.date},${t.type},"${t.note||''}","${catName(t.cat)}","${accName(t.acc)}",${t.amt},${t.by||''}\n`; });
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `Laporan_DuitKu_${curMonth}.csv`; link.click();
+}
+function addMember() { const el = document.getElementById('newMember'); const val = el.value.trim(); if(!val) return; if(db.members.includes(val)) return alert('Nama sudah ada'); db.members.push(val); save(); }
+function delMember(idx) { if(db.members.length <= 1) return alert('Minimal harus ada 1 anggota'); if(!confirm('Hapus anggota ini?')) return; db.members.splice(idx, 1); save(); }
+function delCategory(id) { if(!confirm('Hapus kategori ini?')) return; db.cats = db.cats.filter(c => c.id !== id); db.tx.forEach(t => { if(t.cat === id) t.cat = ''; }); save(); }
+function backupData() { const blob = new Blob([JSON.stringify(db, null, 2)], { type: 'application/json' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `Backup_DuitKu_${todayStr()}.json`; a.click(); }
+function resetData() { if(!confirm('ANDA YAKIN? Seluruh data akan dihapus permanen dari Cloud!')) return; if(!confirm('Konfirmasi terakhir: Mulai dari nol?')) return; db = seedDB(); save(); }
+
+/* MODAL TRANSAKSI, DOMPET, RENCANA */
+function openTx(id) {
+  const t = id ? { ...db.tx.find(x => x.id === id) } : { id: '', type: 'keluar', date: todayStr(), acc: db.accounts[0] ? db.accounts[0].id : '', to: '', cat: '', amt: '', note: '', by: db.members[0] || '' };
+  const currentCatName = t.cat ? catName(t.cat) : '';
+  const catSuggestions = db.cats.filter(c => c.t === (t.type === 'masuk' ? 'masuk' : 'keluar')).map(c => `<option value="${esc(c.n)}"></option>`).join('');
+  const accOpts = db.accounts.map(a => `<option value="${a.id}" ${a.id === t.acc ? 'selected' : ''}>${esc(a.name)}</option>`).join('');
+  const memOpts = db.members.map(m => `<option ${m === t.by ? 'selected' : ''}>${esc(m)}</option>`).join('');
+  $modalContent.innerHTML = `
+    <h3>${id ? 'Edit' : 'Tambah'} Transaksi</h3>
+    <div class="form-group"><label>Jenis Transaksi</label><select id="fType"><option value="keluar" ${t.type === 'keluar' ? 'selected' : ''}>Pengeluaran (Keluar)</option><option value="masuk" ${t.type === 'masuk' ? 'selected' : ''}>Pemasukan (Masuk)</option></select></div>
+    <div class="form-group"><label>Nominal (Rp)</label><input id="fAmt" type="number" value="${t.amt || ''}" placeholder="0"></div>
+    <div class="form-group"><label>Tanggal</label><input id="fDate" type="date" value="${t.date}"></div>
+    <div class="form-group"><label>Dompet / Bank</label><select id="fAcc">${accOpts}</select></div>
+    <div class="form-group" id="wrapCat"><label>Kategori (Ketik manual bebas)</label><input id="fCat" type="text" list="catList" value="${esc(currentCatName)}" placeholder="Ketik kategori atau pilih..."><datalist id="catList">${catSuggestions}</datalist></div>
+    <div class="form-group"><label>Dicatat Oleh</label><select id="fBy">${memOpts}</select></div>
+    <div class="form-group"><label>Catatan (Opsional)</label><input id="fNote" type="text" value="${esc(t.note || '')}" placeholder="mis. Bayar parkir"></div>
+    <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Batal</button><button class="btn btn-primary" onclick="submitTx('${id || ''}')">Simpan</button></div>
+    ${id ? `<button class="btn btn-outline" style="margin-top:10px; color:var(--red); border-color:var(--red); width:100%;" onclick="deleteTx('${id}')">Hapus Transaksi</button>` : ''}
+  `;
+  $modal.classList.add('on');
+  document.getElementById('fType').addEventListener('change', e => { const type = e.target.value; document.getElementById('catList').innerHTML = db.cats.filter(c => c.t === (type === 'masuk' ? 'masuk' : 'keluar')).map(c => `<option value="${esc(c.n)}"></option>`).join(''); document.getElementById('fCat').value = ''; });
+}
+function submitTx(id) {
+  const amt = Math.abs(parseFloat(document.getElementById('fAmt').value) || 0); if (!amt) return alert('Nominal wajib diisi');
+  const type = document.getElementById('fType').value; const catInput = document.getElementById('fCat').value.trim(); let catId = '';
+  if (catInput) { let existingCat = db.cats.find(c => c.n.toLowerCase() === catInput.toLowerCase() && c.t === type); if (!existingCat) { existingCat = { id: uid(), n: catInput, t: type }; db.cats.push(existingCat); } catId = existingCat.id; }
+  const obj = { id: id || uid(), type, date: document.getElementById('fDate').value, acc: document.getElementById('fAcc').value, cat: catId, amt, note: document.getElementById('fNote').value.trim(), by: document.getElementById('fBy').value, ts: Date.now() };
+  const i = db.tx.findIndex(x => x.id === obj.id); if (i >= 0) db.tx[i] = obj; else db.tx.push(obj);
+  save(); closeModal();
+}
+function deleteTx(id) { if (!confirm('Hapus transaksi ini?')) return; db.tx = db.tx.filter(x => x.id !== id); save(); closeModal(); }
+function openAcc(id) {
+  const a = id ? { ...db.accounts.find(x => x.id === id) } : { id: '', name: '', type: 'bank', open: 0 };
+  $modalContent.innerHTML = `<h3>${id ? 'Edit' : 'Tambah'} Dompet / Bank</h3><div class="form-group"><label>Nama</label><input id="aName" type="text" value="${esc(a.name)}" placeholder="mis. Bank Mandiri"></div><div class="form-group"><label>Jenis</label><select id="aType"><option value="bank" ${a.type === 'bank' ? 'selected' : ''}>Bank</option><option value="cash" ${a.type === 'cash' ? 'selected' : ''}>Cash</option><option value="ewallet" ${a.type === 'ewallet' ? 'selected' : ''}>E-Wallet</option></select></div><div class="form-group"><label>Saldo Awal</label><input id="aOpen" type="number" value="${a.open || 0}"></div><div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Batal</button><button class="btn btn-primary" onclick="submitAcc('${id || ''}')">Simpan</button></div>${id ? `<button class="btn btn-outline" style="margin-top:10px; color:var(--red); border-color:var(--red); width:100%;" onclick="deleteAcc('${id}')">Hapus</button>` : ''}`;
+  $modal.classList.add('on');
+}
+function submitAcc(id) { const name = document.getElementById('aName').value.trim(); if (!name) return alert('Nama wajib diisi'); const obj = { id: id || uid(), name, type: document.getElementById('aType').value, open: parseFloat(document.getElementById('aOpen').value) || 0 }; const i = db.accounts.findIndex(x => x.id === obj.id); if (i >= 0) db.accounts[i] = obj; else db.accounts.push(obj); save(); closeModal(); }
+function deleteAcc(id) { if (!confirm('Hapus dompet ini?')) return; db.accounts = db.accounts.filter(x => x.id !== id); db.tx = db.tx.filter(t => t.acc !== id && t.to !== id); save(); closeModal(); }
+function openPlan(id) {
+  const p = id ? { ...db.plans.find(x => x.id === id) } : { id: '', name: '', target: 0, saved: 0, priority: 'Sedang' };
+  $modalContent.innerHTML = `<h3>${id ? 'Edit' : 'Tambah'} Rencana</h3><div class="form-group"><label>Nama Rencana</label><input id="pName" type="text" value="${esc(p.name)}" placeholder="mis. Rumah / Mobil"></div><div class="form-group"><label>Target Dana (Rp)</label><input id="pTarget" type="number" value="${p.target || ''}"></div><div class="form-group"><label>Sudah Terkumpul (Rp)</label><input id="pSaved" type="number" value="${p.saved || 0}"></div><div class="form-group"><label>Prioritas</label><select id="pPrio"><option value="Tinggi" ${p.priority === 'Tinggi' ? 'selected' : ''}>Tinggi</option><option value="Sedang" ${p.priority === 'Sedang' ? 'selected' : ''}>Sedang</option><option value="Rendah" ${p.priority === 'Rendah' ? 'selected' : ''}>Rendah</option></select></div><div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Batal</button><button class="btn btn-primary" onclick="submitPlan('${id || ''}')">Simpan</button></div>${id ? `<button class="btn btn-outline" style="margin-top:10px; color:var(--red); border-color:var(--red); width:100%;" onclick="deletePlan('${id}')">Hapus</button>` : ''}`;
+  $modal.classList.add('on');
+}
+function submitPlan(id) { const name = document.getElementById('pName').value.trim(); if (!name) return alert('Nama rencana wajib diisi'); const obj = { id: id || uid(), name, target: parseFloat(document.getElementById('pTarget').value) || 0, saved: parseFloat(document.getElementById('pSaved').value) || 0, priority: document.getElementById('pPrio').value }; const i = db.plans.findIndex(x => x.id === obj.id); if (i >= 0) db.plans[i] = obj; else db.plans.push(obj); save(); closeModal(); }
+function deletePlan(id) { if (!confirm('Hapus rencana ini?')) return; db.plans = db.plans.filter(x => x.id !== id); save(); closeModal(); }
+function addFund(id) { const p = db.plans.find(x => x.id === id); const v = prompt('Tambah dana ke "' + p.name + '" (Rp):', '0'); if (v === null) return; const amt = parseFloat(v) || 0; if (amt <= 0) return; p.saved += amt; save(); }
+function closeModal() { $modal.classList.remove('on'); $modalContent.innerHTML = ''; }
+$modal.addEventListener('click', e => { if (e.target === $modal) closeModal(); });
+
+/* NAVIGATION */
+document.querySelectorAll('.nav-menu li').forEach(li => {
+  li.addEventListener('click', () => {
+    document.querySelectorAll('.nav-menu li').forEach(x => x.classList.remove('active'));
+    li.classList.add('active');
+    tab = li.dataset.tab;
+    document.getElementById('page-title').textContent = li.innerText.trim();
+    render();
+  });
+});
+
+/* MULAI APLIKASI */
+syncRealtime();
+</script>
+</body>
+</html>
