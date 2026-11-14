@@ -39,7 +39,7 @@
   .spinner { width: 40px; height: 40px; border: 4px solid rgba(255,255,255,0.1); border-left-color: #38bdf8; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px; }
   @keyframes spin { to { transform: rotate(360deg); } }
 
-  /* === SIDEBAR === */
+  /* === SIDEBAR (Desktop) === */
   .sidebar { width: 250px; background: var(--sidebar-bg); color: var(--sidebar-text); display: flex; flex-direction: column; transition: 0.3s; }
   .brand { padding: 22px 20px; border-bottom: 1px solid #334155; display: flex; flex-direction: column; gap: 4px; }
   .brand-main { font-family: var(--font-brand); font-size: 22px; font-weight: 800; color: #fff; display: flex; align-items: center; gap: 10px; letter-spacing: -0.5px; }
@@ -64,7 +64,7 @@
   .avatar { width: 40px; height: 40px; background: linear-gradient(135deg, #3b82f6, #8b5cf6); color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: var(--font-brand); font-weight: 700; font-size: 16px; box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3); }
 
   .dashboard-container { padding: 20px 25px; display: grid; gap: 20px; grid-template-columns: repeat(3, 1fr); }
-  .card { background: var(--card-bg); border-radius: 8px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); border: 1px solid var(--border); }
+  .card { background: var(--card-bg); border-radius: 8px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); border: 1px solid var(--border); overflow-x: auto; }
   .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px; }
   .card-header h3 { font-size: 14px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
 
@@ -72,7 +72,9 @@
   .half-width { grid-column: span 2; }
   .one-third { grid-column: span 1; }
 
-  .kpi-group { display: flex; justify-content: space-between; align-items: center; }
+  /* KPI CARDS - Dibuat agar otomatis turun ke bawah jika layar sempit */
+  .kpi-group { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; }
+  .kpi-item { flex: 1; min-width: 140px; }
   .kpi-item h4 { font-size: 12px; color: var(--text-muted); margin-bottom: 5px; font-weight: 600; }
   .kpi-item .value { font-family: var(--font-brand); font-size: 22px; font-weight: 800; }
   .kpi-item .value.pos { color: var(--green); }
@@ -81,7 +83,7 @@
 
   .chart-container { position: relative; height: 250px; width: 100%; }
 
-  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; white-space: nowrap; }
   th { text-align: left; padding: 10px; border-bottom: 1px solid var(--border); color: var(--text-muted); font-weight: 600; }
   td { padding: 10px; border-bottom: 1px solid #f1f5f9; }
   tr:last-child td { border-bottom: none; }
@@ -111,7 +113,7 @@
   .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
   .modal-actions button { flex: 1; }
 
-  .setting-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #f1f5f9; }
+  .setting-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #f1f5f9; gap: 10px; }
   .setting-row:last-child { border-bottom: none; }
   .setting-info h4 { font-size: 14px; font-weight: 600; }
   .setting-info p { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
@@ -120,15 +122,36 @@
   .tag i { cursor: pointer; color: #94a3b8; }
   .tag i:hover { color: var(--red); }
 
+  /* === TAMPILAN KHUSUS MOBILE (TABLET & IPHONE) === */
   @media (max-width: 1024px) {
     .dashboard-container { grid-template-columns: 1fr; }
     .full-width, .half-width, .one-third { grid-column: span 1; }
   }
+  
   @media (max-width: 768px) {
+    /* Sembunyikan sidebar di HP */
     .sidebar { display: none; }
     body { flex-direction: column; }
-    .dashboard-container { padding: 10px; gap: 10px; }
+    
+    /* Sesuaikan header atas */
+    .topbar { flex-direction: column; align-items: flex-start; gap: 12px; padding: 15px; }
+    .user-profile { width: 100%; justify-content: flex-end; }
+    .greeting { text-align: right; }
+    
+    /* Sesuaikan Container & Padding */
+    .dashboard-container { padding: 12px; gap: 12px; }
     .card { padding: 15px; }
+    
+    /* Buat KPI Cards menumpuk ke bawah */
+    .kpi-group { flex-direction: column; align-items: stretch; gap: 12px; }
+    .kpi-item { border-bottom: 1px solid var(--border); padding-bottom: 10px; }
+    .kpi-item:last-child { border-bottom: none; padding-bottom: 0; }
+    
+    /* Setting menu menumpuk */
+    .setting-row { flex-direction: column; align-items: flex-start; }
+    
+    /* Ukuran Grafik */
+    .chart-container { height: 220px !important; }
   }
 </style>
 </head>
@@ -308,21 +331,20 @@ function viewDash() {
     <div class="card full-width">
       <div class="card-header">
         <h3><i class="fa-solid fa-list"></i> Transaksi Terakhir</h3>
-        <button class="btn btn-primary" onclick="openTx(null)"><i class="fa-solid fa-plus"></i> Catat Transaksi</button>
+        <button class="btn btn-primary" onclick="openTx(null)"><i class="fa-solid fa-plus"></i> Catat</button>
       </div>
       <table>
-        <thead><tr><th>Tanggal</th><th>Keterangan</th><th>Dompet</th><th>Kategori</th><th>Nominal</th><th>Status</th></tr></thead>
+        <thead><tr><th>Tanggal</th><th>Keterangan</th><th>Dompet</th><th>Kategori</th><th>Nominal</th></tr></thead>
         <tbody>
           ${recentTx.length ? recentTx.map(t => `
             <tr>
               <td>${fmtDate(t.date)}</td>
-              <td>${esc(t.note || 'Tanpa catatan')}</td>
+              <td>${esc(t.note || '-')}</td>
               <td>${esc(accName(t.acc))}</td>
               <td><span class="badge blue">${esc(catName(t.cat))}</span></td>
               <td class="${t.type === 'masuk' ? 'pos' : 'neg'}" style="font-weight:700;">${t.type === 'masuk' ? '+' : '−'}${fmt(t.amt)}</td>
-              <td><span class="badge ${t.type === 'masuk' ? 'green' : 'red'}">${t.type === 'masuk' ? 'Masuk' : 'Keluar'}</span></td>
             </tr>
-          `).join('') : '<tr><td colspan="6" style="text-align:center; color:#94a3b8;">Belum ada transaksi</td></tr>'}
+          `).join('') : '<tr><td colspan="5" style="text-align:center; color:#94a3b8;">Belum ada transaksi</td></tr>'}
         </tbody>
       </table>
     </div>
@@ -335,14 +357,14 @@ function viewTx() {
   return `
     <div class="card full-width">
       <div class="card-header">
-        <h3><i class="fa-solid fa-file-invoice-dollar"></i> Daftar Transaksi — ${fmtMonth(curMonth)}</h3>
+        <h3><i class="fa-solid fa-file-invoice-dollar"></i> Transaksi — ${fmtMonth(curMonth)}</h3>
         <div style="display:flex; gap:10px;">
           <input type="month" id="monthSel" value="${curMonth}" style="padding:8px; border-radius:6px; border:1px solid var(--border);">
           <button class="btn btn-primary" onclick="openTx(null)"><i class="fa-solid fa-plus"></i> Tambah</button>
         </div>
       </div>
       <table>
-        <thead><tr><th>Tanggal</th><th>Keterangan</th><th>Dompet</th><th>Kategori</th><th>Nominal</th><th>Oleh</th><th>Aksi</th></tr></thead>
+        <thead><tr><th>Tanggal</th><th>Keterangan</th><th>Dompet</th><th>Kategori</th><th>Nominal</th><th>Aksi</th></tr></thead>
         <tbody>
           ${list.length ? list.map(t => `
             <tr>
@@ -351,10 +373,9 @@ function viewTx() {
               <td>${esc(accName(t.acc))}</td>
               <td><span class="badge blue">${esc(catName(t.cat))}</span></td>
               <td class="${t.type === 'masuk' ? 'pos' : 'neg'}" style="font-weight:700;">${t.type === 'masuk' ? '+' : '−'}${fmt(t.amt)}</td>
-              <td>${esc(t.by || '-')}</td>
               <td><button class="btn btn-outline btn-sm" onclick="openTx('${t.id}')">Edit</button></td>
             </tr>
-          `).join('') : '<tr><td colspan="7" style="text-align:center; color:#94a3b8;">Tidak ada transaksi di bulan ini</td></tr>'}
+          `).join('') : '<tr><td colspan="6" style="text-align:center; color:#94a3b8;">Tidak ada transaksi</td></tr>'}
         </tbody>
       </table>
     </div>`;
@@ -370,10 +391,9 @@ function viewAcc() {
         </div>
         <div style="font-size:12px; color:var(--text-muted);">${a.type === 'cash' ? 'Uang Cash' : a.type === 'ewallet' ? 'E-Wallet' : 'Rekening Bank'}</div>
         <div style="font-family: var(--font-brand); font-size:22px; font-weight:800; margin-top:10px;" class="${accBal(a.id) < 0 ? 'neg' : ''}">${fmt(accBal(a.id))}</div>
-        <div style="font-size:11px; color:var(--text-muted); margin-top:5px;">Saldo awal: ${fmt(a.open || 0)}</div>
       </div>`).join('')}
     <div class="card full-width">
-      <button class="btn btn-outline" style="width:100%;" onclick="openAcc(null)"><i class="fa-solid fa-plus"></i> Tambah Bank / Dompet Baru</button>
+      <button class="btn btn-outline" style="width:100%;" onclick="openAcc(null)"><i class="fa-solid fa-plus"></i> Tambah Dompet</button>
     </div>
   `;
 }
@@ -384,10 +404,10 @@ function viewPlan() {
   return `
     <div class="card full-width">
       <div class="kpi-group">
-        <div class="kpi-item"><h4>Total Target Impian</h4><div class="value">${fmt(totalTarget)}</div></div>
+        <div class="kpi-item"><h4>Total Target</h4><div class="value">${fmt(totalTarget)}</div></div>
         <div class="kpi-item"><h4>Terkumpul</h4><div class="value pos">${fmt(totalSaved)}</div></div>
         <div class="kpi-item"><h4>Progress</h4><div class="value">${totalTarget ? Math.round(totalSaved / totalTarget * 100) : 0}%</div></div>
-        <button class="btn btn-primary" onclick="openPlan(null)"><i class="fa-solid fa-plus"></i> Rencana Baru</button>
+        <button class="btn btn-primary" onclick="openPlan(null)"><i class="fa-solid fa-plus"></i> Rencana</button>
       </div>
     </div>
     ${db.plans.map(p => {
@@ -406,7 +426,7 @@ function viewPlan() {
           <span class="neg">Sisa ${fmt(Math.max(0, p.target - p.saved))}</span>
         </div>
         <div style="display:flex; gap:8px; margin-top:15px;">
-          <button class="btn btn-outline" style="flex:1; padding:6px;" onclick="addFund('${p.id}')"><i class="fa-solid fa-plus"></i> Dana</button>
+          <button class="btn btn-outline" style="flex:1; padding:6px;" onclick="addFund('${p.id}')">Dana</button>
           <button class="btn btn-outline" style="flex:1; padding:6px;" onclick="openPlan('${p.id}')">Edit</button>
         </div>
       </div>`;
@@ -426,36 +446,33 @@ function viewRep() {
 
   return `
     <div class="card full-width">
-      <div class="card-header"><h3><i class="fa-solid fa-chart-bar"></i> Tren 6 Bulan Terakhir</h3></div>
+      <div class="card-header"><h3><i class="fa-solid fa-chart-bar"></i> Tren 6 Bulan</h3></div>
       <div class="chart-container" style="height: 300px;"><canvas id="trendChart"></canvas></div>
     </div>
 
     <div class="card one-third">
-      <div class="card-header"><h3>Pemasukan (${fmtMonth(curMonth)})</h3></div>
+      <div class="card-header"><h3>Pemasukan</h3></div>
       ${incArr.length ? incArr.map(([cat, amt]) => `
         <div style="margin-bottom:12px">
           <div style="display:flex;justify-content:space-between;font-size:13px; margin-bottom:4px;">
             <span>${esc(cat)}</span><b class="pos">${fmt(amt)}</b>
           </div>
-          <div style="font-size:11px; color:var(--text-muted); text-align:right;">${Math.round(amt/inc*100)}% dari total</div>
         </div>`).join('') : '<p style="color:var(--text-muted); font-size:13px;">Tidak ada pemasukan</p>'}
     </div>
 
     <div class="card one-third">
-      <div class="card-header"><h3>Pengeluaran (${fmtMonth(curMonth)})</h3></div>
+      <div class="card-header"><h3>Pengeluaran</h3></div>
       ${expArr.length ? expArr.map(([cat, amt]) => `
         <div style="margin-bottom:12px">
           <div style="display:flex;justify-content:space-between;font-size:13px; margin-bottom:4px;">
             <span>${esc(cat)}</span><b class="neg">${fmt(amt)}</b>
           </div>
-          <div style="font-size:11px; color:var(--text-muted); text-align:right;">${Math.round(amt/exp*100)}% dari total</div>
         </div>`).join('') : '<p style="color:var(--text-muted); font-size:13px;">Tidak ada pengeluaran</p>'}
     </div>
 
     <div class="card one-third">
       <div class="card-header"><h3>Export Data</h3></div>
-      <p style="font-size:12px; color:var(--text-muted); margin-bottom:15px;">Unduh laporan transaksi bulan ini dalam format Excel/CSV.</p>
-      <button class="btn btn-outline" style="width:100%;" onclick="exportCSV()"><i class="fa-solid fa-file-excel"></i> Download CSV (${fmtMonth(curMonth)})</button>
+      <button class="btn btn-outline" style="width:100%; margin-top:10px;" onclick="exportCSV()"><i class="fa-solid fa-file-excel"></i> Download CSV</button>
     </div>
   `;
 }
@@ -467,7 +484,7 @@ function viewSettings() {
         <i class="fa-solid fa-cloud-check" style="font-size:30px; color:#0284c7;"></i>
         <div>
           <h4 style="color:#0369a1; margin-bottom:4px;">Cloud Sync Aktif</h4>
-          <p style="font-size:12px; color:#0c4a6e;">Semua data yang dicatat di HP Anda dan istri akan tersinkronisasi secara realtime melalui ID Keluarga: <b>${FAMILY_ID}</b></p>
+          <p style="font-size:12px; color:#0c4a6e;">Data tersinkronisasi realtime via ID: <b>${FAMILY_ID}</b></p>
         </div>
       </div>
     </div>
@@ -480,41 +497,32 @@ function viewSettings() {
         `).join('')}
       </div>
       <div style="display:flex; gap:10px; margin-top:15px;">
-        <input type="text" id="newMember" placeholder="Nama anggota baru..." style="flex:1; padding:8px; border:1px solid var(--border); border-radius:6px;">
+        <input type="text" id="newMember" placeholder="Nama anggota..." style="flex:1; padding:8px; border:1px solid var(--border); border-radius:6px;">
         <button class="btn btn-primary" onclick="addMember()">Tambah</button>
       </div>
     </div>
 
     <div class="card one-third">
-      <div class="card-header"><h3><i class="fa-solid fa-tags"></i> Manajemen Kategori</h3></div>
+      <div class="card-header"><h3><i class="fa-solid fa-tags"></i> Kategori</h3></div>
       <div style="max-height:200px; overflow-y:auto; margin-bottom:15px;">
         ${db.cats.map(c => `
           <div class="setting-row" style="padding:8px 0;">
-            <div class="setting-info">
-              <span class="badge ${c.t === 'masuk' ? 'green' : 'red'}">${esc(c.n)}</span>
-            </div>
+            <div class="setting-info"><span class="badge ${c.t === 'masuk' ? 'green' : 'red'}">${esc(c.n)}</span></div>
             <button class="btn btn-outline btn-sm" onclick="delCategory('${c.id}')"><i class="fa-solid fa-trash"></i></button>
           </div>
         `).join('')}
       </div>
-      <p style="font-size:11px; color:var(--text-muted);">*Kategori baru akan otomatis muncul saat Anda mengetiknya di menu Transaksi.</p>
     </div>
 
     <div class="card full-width">
       <div class="card-header"><h3><i class="fa-solid fa-shield-halved"></i> Keamanan & Data</h3></div>
       <div class="setting-row">
-        <div class="setting-info">
-          <h4>Backup Data Manual</h4>
-          <p>Simpan salinan data ke file (.json) sebagai cadangan ekstra.</p>
-        </div>
+        <div class="setting-info"><h4>Backup Data</h4><p>Simpan salinan cadangan (.json)</p></div>
         <button class="btn btn-outline" onclick="backupData()"><i class="fa-solid fa-download"></i> Backup</button>
       </div>
       <div class="setting-row">
-        <div class="setting-info">
-          <h4 style="color:var(--red)">Hapus Semua Data</h4>
-          <p>Mengosongkan seluruh transaksi di Cloud. Tidak bisa dibatalkan!</p>
-        </div>
-        <button class="btn btn-danger" onclick="resetData()"><i class="fa-solid fa-trash-can"></i> Reset Data</button>
+        <div class="setting-info"><h4 style="color:var(--red)">Hapus Semua Data</h4><p>Kosongkan semua transaksi di Cloud</p></div>
+        <button class="btn btn-danger" onclick="resetData()"><i class="fa-solid fa-trash-can"></i> Reset</button>
       </div>
     </div>
   `;
@@ -614,14 +622,14 @@ function submitTx(id) {
 function deleteTx(id) { if (!confirm('Hapus transaksi ini?')) return; db.tx = db.tx.filter(x => x.id !== id); save(); closeModal(); }
 function openAcc(id) {
   const a = id ? { ...db.accounts.find(x => x.id === id) } : { id: '', name: '', type: 'bank', open: 0 };
-  $modalContent.innerHTML = `<h3>${id ? 'Edit' : 'Tambah'} Dompet / Bank</h3><div class="form-group"><label>Nama</label><input id="aName" type="text" value="${esc(a.name)}" placeholder="mis. Bank Mandiri"></div><div class="form-group"><label>Jenis</label><select id="aType"><option value="bank" ${a.type === 'bank' ? 'selected' : ''}>Bank</option><option value="cash" ${a.type === 'cash' ? 'selected' : ''}>Cash</option><option value="ewallet" ${a.type === 'ewallet' ? 'selected' : ''}>E-Wallet</option></select></div><div class="form-group"><label>Saldo Awal</label><input id="aOpen" type="number" value="${a.open || 0}"></div><div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Batal</button><button class="btn btn-primary" onclick="submitAcc('${id || ''}')">Simpan</button></div>${id ? `<button class="btn btn-outline" style="margin-top:10px; color:var(--red); border-color:var(--red); width:100%;" onclick="deleteAcc('${id}')">Hapus</button>` : ''}`;
+  $modalContent.innerHTML = `<h3>${id ? 'Edit' : 'Tambah'} Dompet</h3><div class="form-group"><label>Nama</label><input id="aName" type="text" value="${esc(a.name)}" placeholder="mis. Bank Mandiri"></div><div class="form-group"><label>Jenis</label><select id="aType"><option value="bank" ${a.type === 'bank' ? 'selected' : ''}>Bank</option><option value="cash" ${a.type === 'cash' ? 'selected' : ''}>Cash</option><option value="ewallet" ${a.type === 'ewallet' ? 'selected' : ''}>E-Wallet</option></select></div><div class="form-group"><label>Saldo Awal</label><input id="aOpen" type="number" value="${a.open || 0}"></div><div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Batal</button><button class="btn btn-primary" onclick="submitAcc('${id || ''}')">Simpan</button></div>${id ? `<button class="btn btn-outline" style="margin-top:10px; color:var(--red); border-color:var(--red); width:100%;" onclick="deleteAcc('${id}')">Hapus</button>` : ''}`;
   $modal.classList.add('on');
 }
 function submitAcc(id) { const name = document.getElementById('aName').value.trim(); if (!name) return alert('Nama wajib diisi'); const obj = { id: id || uid(), name, type: document.getElementById('aType').value, open: parseFloat(document.getElementById('aOpen').value) || 0 }; const i = db.accounts.findIndex(x => x.id === obj.id); if (i >= 0) db.accounts[i] = obj; else db.accounts.push(obj); save(); closeModal(); }
 function deleteAcc(id) { if (!confirm('Hapus dompet ini?')) return; db.accounts = db.accounts.filter(x => x.id !== id); db.tx = db.tx.filter(t => t.acc !== id && t.to !== id); save(); closeModal(); }
 function openPlan(id) {
   const p = id ? { ...db.plans.find(x => x.id === id) } : { id: '', name: '', target: 0, saved: 0, priority: 'Sedang' };
-  $modalContent.innerHTML = `<h3>${id ? 'Edit' : 'Tambah'} Rencana</h3><div class="form-group"><label>Nama Rencana</label><input id="pName" type="text" value="${esc(p.name)}" placeholder="mis. Rumah / Mobil"></div><div class="form-group"><label>Target Dana (Rp)</label><input id="pTarget" type="number" value="${p.target || ''}"></div><div class="form-group"><label>Sudah Terkumpul (Rp)</label><input id="pSaved" type="number" value="${p.saved || 0}"></div><div class="form-group"><label>Prioritas</label><select id="pPrio"><option value="Tinggi" ${p.priority === 'Tinggi' ? 'selected' : ''}>Tinggi</option><option value="Sedang" ${p.priority === 'Sedang' ? 'selected' : ''}>Sedang</option><option value="Rendah" ${p.priority === 'Rendah' ? 'selected' : ''}>Rendah</option></select></div><div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Batal</button><button class="btn btn-primary" onclick="submitPlan('${id || ''}')">Simpan</button></div>${id ? `<button class="btn btn-outline" style="margin-top:10px; color:var(--red); border-color:var(--red); width:100%;" onclick="deletePlan('${id}')">Hapus</button>` : ''}`;
+  $modalContent.innerHTML = `<h3>${id ? 'Edit' : 'Tambah'} Rencana</h3><div class="form-group"><label>Nama Rencana</label><input id="pName" type="text" value="${esc(p.name)}" placeholder="mis. Rumah"></div><div class="form-group"><label>Target Dana (Rp)</label><input id="pTarget" type="number" value="${p.target || ''}"></div><div class="form-group"><label>Sudah Terkumpul</label><input id="pSaved" type="number" value="${p.saved || 0}"></div><div class="form-group"><label>Prioritas</label><select id="pPrio"><option value="Tinggi" ${p.priority === 'Tinggi' ? 'selected' : ''}>Tinggi</option><option value="Sedang" ${p.priority === 'Sedang' ? 'selected' : ''}>Sedang</option><option value="Rendah" ${p.priority === 'Rendah' ? 'selected' : ''}>Rendah</option></select></div><div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Batal</button><button class="btn btn-primary" onclick="submitPlan('${id || ''}')">Simpan</button></div>${id ? `<button class="btn btn-outline" style="margin-top:10px; color:var(--red); border-color:var(--red); width:100%;" onclick="deletePlan('${id}')">Hapus</button>` : ''}`;
   $modal.classList.add('on');
 }
 function submitPlan(id) { const name = document.getElementById('pName').value.trim(); if (!name) return alert('Nama rencana wajib diisi'); const obj = { id: id || uid(), name, target: parseFloat(document.getElementById('pTarget').value) || 0, saved: parseFloat(document.getElementById('pSaved').value) || 0, priority: document.getElementById('pPrio').value }; const i = db.plans.findIndex(x => x.id === obj.id); if (i >= 0) db.plans[i] = obj; else db.plans.push(obj); save(); closeModal(); }
