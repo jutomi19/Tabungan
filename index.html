@@ -63,7 +63,8 @@
   .greeting .future { font-family: var(--font-brand); font-size: 18px; color: var(--text-main); font-weight: 800; }
   .avatar { width: 40px; height: 40px; background: linear-gradient(135deg, #3b82f6, #8b5cf6); color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: var(--font-brand); font-weight: 700; font-size: 16px; box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3); }
 
-  .dashboard-container { padding: 20px 25px; display: grid; gap: 20px; grid-template-columns: repeat(3, 1fr); padding-bottom: 80px; }
+  /* CONTAINER DENGAN PADDING BAWAH YANG LEBIH BESAR */
+  .dashboard-container { padding: 20px 25px; display: grid; gap: 20px; grid-template-columns: repeat(3, 1fr); padding-bottom: 120px; }
   .card { background: var(--card-bg); border-radius: 8px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); border: 1px solid var(--border); overflow-x: auto; }
   .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px; }
   .card-header h3 { font-size: 14px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
@@ -127,6 +128,10 @@
   .mobile-nav li i { font-size: 20px; }
   .mobile-nav li.active { color: var(--blue); }
 
+  /* === TOMBOL TAMBAH MELAYANG (FAB) UNTUK DI HP === */
+  .fab { display: none; position: fixed; right: 20px; bottom: 90px; width: 56px; height: 56px; background: var(--blue); color: #fff; border-radius: 50%; border: none; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4); font-size: 24px; cursor: pointer; z-index: 950; align-items: center; justify-content: center; transition: 0.2s; }
+  .fab:active { transform: scale(0.95); }
+
   /* === RESPONSIVE (TABLET & IPHONE) === */
   @media (max-width: 1024px) {
     .dashboard-container { grid-template-columns: 1fr; }
@@ -134,13 +139,17 @@
   }
   
   @media (max-width: 768px) {
-    .sidebar { display: none; } /* Sembunyikan menu kiri di HP */
-    .mobile-nav { display: flex; } /* Munculkan menu bawah di HP */
+    .sidebar { display: none; }
+    .mobile-nav { display: flex; }
+    .fab { display: flex; } /* Munculkan tombol melayang di HP */
     body { flex-direction: column; }
     .topbar { flex-direction: column; align-items: flex-start; gap: 12px; padding: 15px; }
     .user-profile { width: 100%; justify-content: flex-end; }
     .greeting { text-align: right; }
-    .dashboard-container { padding: 12px; gap: 12px; padding-bottom: 80px; }
+    
+    /* PADDING BAWAH DIPERBESAR AGAR TIDAK TERTUTUP MENU */
+    .dashboard-container { padding: 12px; gap: 12px; padding-bottom: calc(130px + env(safe-area-inset-bottom)); }
+    
     .card { padding: 15px; }
     .kpi-group { flex-direction: column; align-items: stretch; gap: 12px; }
     .kpi-item { border-bottom: 1px solid var(--border); padding-bottom: 10px; }
@@ -189,6 +198,9 @@
   </div>
   <div class="dashboard-container" id="app"></div>
 </main>
+
+<!-- TOMBOL MELAYANG (Hanya muncul di HP) -->
+<button class="fab" onclick="openTx(null)"><i class="fa-solid fa-plus"></i></button>
 
 <!-- NAVIGASI BAWAH (Tampil di HP) -->
 <ul class="mobile-nav" id="nav-mobile">
