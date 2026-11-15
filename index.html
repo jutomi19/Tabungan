@@ -171,13 +171,15 @@
     .topbar { padding: 20px; flex-direction: column; align-items: flex-start; gap: 15px; }
     .user-profile { width: 100%; justify-content: space-between; }
     
-    .dashboard-container { padding: 0 20px calc(220px + env(safe-area-inset-bottom)) 20px; gap: 15px; }
+    /* PADDING BAWAH SANGAT EKSTRA (280px) UNTUK MEMASTIKAN TOMBOL TIDAK TENGGELAM */
+    .dashboard-container { padding: 0 20px calc(280px + env(safe-area-inset-bottom)) 20px; gap: 15px; }
     
     .kpi-group { flex-direction: column; gap: 15px; }
     .card { padding: 20px; border-radius: 20px; }
     .chart-container { height: 240px !important; }
     
-    .add-btn-wrapper { margin-bottom: 80px !important; }
+    /* JARAK AMAN TOMBOL PALING BAWAH */
+    .add-btn-wrapper { margin-bottom: 120px !important; position: relative; z-index: 10; }
   }
 </style>
 </head>
@@ -304,7 +306,6 @@ const $loadingText = document.getElementById('loading-text');
 const $syncToast = document.getElementById('syncToast');
 
 /* ===================== 3. SINKRONISASI REALTIME & FAILSAFE ===================== */
-// FAILSAFE: Jika 8 detik tidak konek, tampilkan pesan error & tombol refresh
 let failsafeTimeout = setTimeout(() => {
   if (!isCloudReady) {
     $loading.innerHTML = `
@@ -357,7 +358,6 @@ function syncRealtime() {
       `;
     });
   } catch (err) {
-    // Jika Firebase script gagal dimuat (misal kena blokir)
     console.error(err);
     clearTimeout(failsafeTimeout);
     $loading.innerHTML = `
@@ -373,7 +373,7 @@ function syncRealtime() {
 
 function save() {
   if(!isCloudReady) return;
-  render(); // Render instan (Optimistic UI) sebelum data masuk server
+  render(); 
   firestore.collection("families").doc(FAMILY_ID).set(db)
     .catch(err => alert("Gagal menyimpan: " + err));
 }
@@ -501,8 +501,15 @@ function viewTx() {
     </div>`;
 }
 
+// === FITUR DOMPET DENGAN TOMBOL ATAS & BAWAH ===
 function viewAcc() {
   return `
+    <!-- Tombol Tambah di Atas (Anti Scroll) -->
+    <div class="card full-width" style="padding: 15px 20px; display: flex; justify-content: space-between; align-items: center;">
+      <h3 style="font-size: 16px; margin: 0; font-weight: 800; color: var(--text-main);">Daftar Dompet</h3>
+      <button class="btn btn-primary btn-sm" onclick="openAcc(null)"><i class="fa-solid fa-plus"></i> Tambah</button>
+    </div>
+
     ${db.accounts.map(a => `
       <div class="card one-third" onclick="openAcc('${a.id}')" style="cursor:pointer;">
         <div class="card-header" style="margin-bottom:10px;">
@@ -513,24 +520,42 @@ function viewAcc() {
         <div style="font-size:26px; font-weight:800; letter-spacing:-1px;" class="${accBal(a.id) < 0 ? 'neg' : ''}">${fmt(accBal(a.id))}</div>
       </div>`).join('')}
     
-    <div class="card full-width add-btn-wrapper" style="border:none; box-shadow:none; padding:0; background:transparent;">
+    <!-- Tombol Tambah di Bawah (Dengan Jarak Ekstra) -->
+    <div class="card full-width add-btn-wrapper" style="border:none; box-shadow:none; padding:0; background:transparent; margin-top: 10px;">
       <button class="btn btn-outline" style="width:100%; background:#fff; padding:20px; border-radius:20px; box-shadow:var(--shadow-sm);" onclick="openAcc(null)"><i class="fa-solid fa-plus"></i> Tambah Dompet Baru</button>
     </div>
   `;
 }
 
+// === FITUR INVESTASI DENGAN AKUMULASI BERAT/UKURAN ===
 function viewInvestments() {
   const totalEst = totalInvestment();
+  
+  // Akumulasi Aset
+  let totalGold = 0;
+  let totalProperty = 0;
+  
+  db.investments.forEach(i => {
+    const val = Number(i.size || i.qty) || 0; 
+    const cat = i.category || 'emas'; 
+    if (cat === 'emas') totalGold += val;
+    if (cat === 'properti') totalProperty += val;
+  });
+
   return `
     <div class="card full-width">
       <div class="kpi-group">
         <div class="kpi-item gradient-gold">
-          <h4>Total Estimasi Nilai Aset</h4>
+          <h4>Total Nilai Aset</h4>
           <div class="value gold">${fmt(totalEst)}</div>
         </div>
-        <div class="kpi-item" style="background:#f8fafc; border: 2px solid var(--border);">
-          <h4>Jumlah Aset Tercatat</h4>
-          <div class="value">${db.investments.length} Item</div>
+        <div class="kpi-item" style="background:#fffbeb; border: 2px solid #fde68a;">
+          <h4>Akumulasi Emas</h4>
+          <div class="value" style="color:#b45309;">${totalGold.toFixed(2)} <span style="font-size:14px;">Gram</span></div>
+        </div>
+        <div class="kpi-item" style="background:#f0fdf4; border: 2px solid #bbf7d0;">
+          <h4>Akumulasi Properti</h4>
+          <div class="value" style="color:#15803d;">${totalProperty} <span style="font-size:14px;">Unit</span></div>
         </div>
         <button class="btn btn-primary" style="flex:0; min-width:160px; align-self:center;" onclick="openInvestment(null)"><i class="fa-solid fa-plus"></i> Tambah Aset</button>
       </div>
@@ -543,19 +568,29 @@ function viewInvestments() {
           <tr><th>Tanggal</th><th>Nama Aset</th><th>Nilai (Rp)</th><th>Berat / Ukuran</th><th>Lampiran</th><th>Aksi</th></tr>
         </thead>
         <tbody>
-          ${db.investments.length ? db.investments.map(s => `
+          ${db.investments.length ? db.investments.map(s => {
+            let unitLabel = s.unit || '';
+            if (s.category === 'emas') unitLabel = 'gr';
+            else if (s.category === 'properti') unitLabel = 'Unit';
+
+            return `
             <tr>
               <td><span class="badge gray">${s.date ? fmtDate(s.date) : '-'}</span></td>
-              <td><b>${esc(s.name)}</b><br><small style="color:var(--text-muted); font-weight:500;">${esc(s.note || '')}</small></td>
+              <td>
+                <b>${esc(s.name)}</b><br>
+                <span class="badge ${s.category === 'emas' ? 'gold' : s.category === 'properti' ? 'green' : 'blue'}" style="font-size:10px; margin-top:4px;">
+                  ${s.category ? s.category.toUpperCase() : 'EMAS'}
+                </span>
+              </td>
               <td><b style="color:var(--gold);">${fmt(s.est)}</b></td>
-              <td><span class="badge gold">${esc(s.size || '-')}</span></td>
+              <td><b>${esc(s.size || s.qty || '-')} ${unitLabel}</b></td>
               <td>${s.link ? `<a href="${esc(s.link)}" target="_blank" class="btn-link"><i class="fa-solid fa-image"></i> Foto</a>` : '-'}</td>
               <td style="display:flex; gap:5px;">
                 <button class="btn btn-outline btn-sm" onclick="openInvestment('${s.id}')"><i class="fa-solid fa-pen"></i></button>
                 <button class="btn btn-danger btn-sm" onclick="openSellInvestment('${s.id}')"><i class="fa-solid fa-money-bill-wave"></i> Jual</button>
               </td>
             </tr>
-          `).join('') : '<tr><td colspan="6" style="text-align:center; color:#94a3b8; padding:30px;">Belum ada catatan investasi</td></tr>'}
+          `}).join('') : '<tr><td colspan="6" style="text-align:center; color:#94a3b8; padding:30px;">Belum ada catatan investasi</td></tr>'}
         </tbody>
       </table>
     </div>
@@ -711,7 +746,7 @@ function render() {
   });
 }
 
-/* ===================== 5. CHART CONFIG (MODERN) ===================== */
+/* ===================== 5. CHART CONFIG ===================== */
 function initDashCharts() {
   const { list } = monthStats(curMonth);
   const last7Days = [...Array(7)].map((_, i) => { const d = new Date(); d.setDate(d.getDate() - (6 - i)); return d.toISOString().slice(0, 10); });
@@ -723,18 +758,8 @@ function initDashCharts() {
   if (ctxLine) {
     chartInstances.line = new Chart(ctxLine, { 
       type: 'line', 
-      data: { 
-        labels: labels, 
-        datasets: [
-          { label: 'Masuk', data: cashIn, borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.1)', tension: 0.4, fill: true, borderWidth: 3, pointRadius: 0, pointHoverRadius: 6 }, 
-          { label: 'Keluar', data: cashOut, borderColor: '#ef4444', backgroundColor: 'rgba(239,68,68,0.1)', tension: 0.4, fill: true, borderWidth: 3, pointRadius: 0, pointHoverRadius: 6 }
-        ] 
-      }, 
-      options: { 
-        responsive: true, maintainAspectRatio: false, 
-        plugins: { legend: { position: 'top', labels: { font: { family: 'Plus Jakarta Sans', weight: 'bold' }, usePointStyle: true, boxWidth: 8 } } },
-        scales: { x: { grid: { display: false } }, y: { grid: { borderDash: [5, 5] }, beginAtZero: true } }
-      } 
+      data: { labels: labels, datasets: [{ label: 'Masuk', data: cashIn, borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.1)', tension: 0.4, fill: true, borderWidth: 3, pointRadius: 0, pointHoverRadius: 6 }, { label: 'Keluar', data: cashOut, borderColor: '#ef4444', backgroundColor: 'rgba(239,68,68,0.1)', tension: 0.4, fill: true, borderWidth: 3, pointRadius: 0, pointHoverRadius: 6 }] }, 
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { font: { family: 'Plus Jakarta Sans', weight: 'bold' }, usePointStyle: true, boxWidth: 8 } } }, scales: { x: { grid: { display: false } }, y: { grid: { borderDash: [5, 5] }, beginAtZero: true } } } 
     });
   }
 
@@ -746,10 +771,7 @@ function initDashCharts() {
   if (ctxPie) {
     chartInstances.pie = new Chart(ctxPie, { 
       type: 'doughnut', 
-      data: { 
-        labels: ['Uang Cash', 'Bank / E-Wallet', 'Investasi'], 
-        datasets: [{ data: [cash, bank, invest], backgroundColor: ['#10b981', '#8b5cf6', '#f59e0b'], borderWidth: 0, hoverOffset: 4 }] 
-      }, 
+      data: { labels: ['Uang Cash', 'Bank / E-Wallet', 'Investasi'], datasets: [{ data: [cash, bank, invest], backgroundColor: ['#10b981', '#8b5cf6', '#f59e0b'], borderWidth: 0, hoverOffset: 4 }] }, 
       options: { cutout: '75%', responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { font: { family: 'Plus Jakarta Sans', weight: 'bold' }, usePointStyle: true, boxWidth: 8 } } } } 
     });
   }
@@ -762,10 +784,7 @@ function initRepCharts() {
   if (ctxTrend) { 
     chartInstances.trend = new Chart(ctxTrend, { 
       type: 'bar', 
-      data: { labels: months, datasets: [
-        { label: 'Pemasukan', data: incData, backgroundColor: '#10b981', borderRadius: 8, barPercentage: 0.6 }, 
-        { label: 'Pengeluaran', data: expData, backgroundColor: '#ef4444', borderRadius: 8, barPercentage: 0.6 }
-      ] }, 
+      data: { labels: months, datasets: [{ label: 'Pemasukan', data: incData, backgroundColor: '#10b981', borderRadius: 8, barPercentage: 0.6 }, { label: 'Pengeluaran', data: expData, backgroundColor: '#ef4444', borderRadius: 8, barPercentage: 0.6 }] }, 
       options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { font: { family: 'Plus Jakarta Sans', weight: 'bold' }, usePointStyle: true } } }, scales: { x: { grid: { display: false } }, y: { beginAtZero: true, grid: { borderDash: [5, 5] } } } } 
     }); 
   }
@@ -835,12 +854,28 @@ function deletePlan(id) { if (!confirm('Hapus rencana ini?')) return; db.plans =
 function addFund(id) { const p = db.plans.find(x => x.id === id); const v = prompt('Tambah dana ke "' + p.name + '" (Rp):', '0'); if (v === null) return; const amt = parseFloat(v) || 0; if (amt <= 0) return; p.saved += amt; save(); }
 
 function openInvestment(id) {
-  const s = id ? { ...db.investments.find(x => x.id === id) } : { id: '', name: '', size: '', est: '', link: '', date: todayStr(), note: '' };
+  const s = id ? { ...db.investments.find(x => x.id === id) } : { id: '', name: '', category: 'emas', size: '', est: '', link: '', date: todayStr(), note: '' };
+  
   $modalContent.innerHTML = `
     <h3>${id ? 'Edit' : 'Tambah'} Aset Investasi</h3>
+    
+    <div class="form-group">
+      <label>Kategori Aset</label>
+      <select id="sCategory">
+        <option value="emas" ${s.category === 'emas' || !s.category ? 'selected' : ''}>Emas (Gram)</option>
+        <option value="properti" ${s.category === 'properti' ? 'selected' : ''}>Properti / Rumah (Unit)</option>
+        <option value="lainnya" ${s.category === 'lainnya' ? 'selected' : ''}>Lainnya</option>
+      </select>
+    </div>
+
     <div class="form-group"><label>Nama Aset</label><input id="sName" type="text" value="${esc(s.name)}" placeholder="mis. Surat Rumah / Emas Antam"></div>
+    
+    <div class="form-group">
+      <label>Berat / Ukuran (Angka Saja)</label>
+      <input id="sSize" type="number" step="0.01" value="${s.size || ''}" placeholder="mis. 5 (untuk 5 gram) atau 1 (untuk 1 unit)">
+    </div>
+
     <div class="form-group"><label>Nilai Estimasi (Rp)</label><input id="sEst" type="number" value="${s.est || ''}" placeholder="0"></div>
-    <div class="form-group"><label>Berat / Ukuran</label><input id="sSize" type="text" value="${esc(s.size || '')}" placeholder="mis. 5 gr, 1 Unit, 100m2"></div>
     <div class="form-group"><label>Tanggal Perolehan</label><input id="sDate" type="date" value="${s.date}"></div>
     <div class="form-group"><label>Link Foto</label><input id="sLink" type="text" value="${esc(s.link || '')}" placeholder="https://..."></div>
     <div class="form-group"><label>Catatan</label><input id="sNote" type="text" value="${esc(s.note || '')}" placeholder="Opsional"></div>
@@ -861,10 +896,21 @@ function openInvestment(id) {
   `;
   $modal.classList.add('on');
 }
+
 function submitInvestment(id) {
   const name = document.getElementById('sName').value.trim(); if (!name) return alert('Nama aset wajib diisi');
   const est = parseFloat(document.getElementById('sEst').value) || 0;
-  const obj = { id: id || uid(), name, est, size: document.getElementById('sSize').value.trim(), date: document.getElementById('sDate').value, link: document.getElementById('sLink').value.trim(), note: document.getElementById('sNote').value.trim() };
+  
+  const obj = { 
+    id: id || uid(), 
+    name, 
+    category: document.getElementById('sCategory').value,
+    size: parseFloat(document.getElementById('sSize').value) || 0,
+    est, 
+    date: document.getElementById('sDate').value, 
+    link: document.getElementById('sLink').value.trim(), 
+    note: document.getElementById('sNote').value.trim() 
+  };
   
   if (!id && document.getElementById('sDeduct') && document.getElementById('sDeduct').checked) {
     const walletId = document.getElementById('sWallet').value;
@@ -881,6 +927,7 @@ function submitInvestment(id) {
   const i = db.investments.findIndex(x => x.id === obj.id); if (i >= 0) db.investments[i] = obj; else db.investments.push(obj);
   save(); closeModal();
 }
+
 function deleteInvestment(id) { if (!confirm('Hapus catatan investasi ini?')) return; db.investments = db.investments.filter(x => x.id !== id); save(); closeModal(); }
 
 function openSellInvestment(id) {
